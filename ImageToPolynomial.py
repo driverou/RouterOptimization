@@ -37,7 +37,7 @@ def plot_3d_image(img_smooth):
     # Add a colorbar
     fig.colorbar(surf, ax=ax, shrink=0.5, aspect=10, pad=0.1, label='Smoothed Image Value')
     ax.grid(False)  # Hide gridlines
-    plt.show()
+    plt.show(block=False)
 def plot_3d_polynomial(model, h, w):
     # Create arrays of x, y coordinates
     y, x = np.mgrid[:h, :w]
@@ -66,7 +66,7 @@ def plot_3d_polynomial(model, h, w):
     # Add a colorbar
     fig.colorbar(surf, ax=ax, shrink=0.5, aspect=10, pad=0.1, label='Fitted Polynomial Value')
     ax.grid(False)  # Hide gridlines
-    plt.show()
+    plt.show(block=False)
 def image_to_polynomial(image_path, degree=2, blur_size=5, blur_sigma=1.5):
     # Load and preprocess the image
     img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
@@ -142,7 +142,7 @@ def visualize_topology(image_path, model, img_smooth, degree, blur_size, blur_si
     cbar.ax.yaxis.set_tick_params(pad=15)  # Adjust colorbar tick label padding
 
     plt.tight_layout()
-    plt.show()
+    plt.show(block=False)
 
 
 
@@ -156,3 +156,4 @@ visualize_topology(image_path, model, img_smooth, degree, blur_size, blur_sigma)
 h, w = img_smooth.shape
 plot_3d_image(img_smooth)
 plot_3d_polynomial(model, h, w)
+plt.show()
