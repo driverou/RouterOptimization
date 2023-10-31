@@ -35,36 +35,6 @@ def image_to_grayscale(image_path, blur_size=5, blur_sigma=1.5):
     
     return img_smooth
 
-# def loss_function(matrix, placements):
-#     """This function calculates the loss by multiplying the pixel value at (x,y) by the distance to each
-#     (u,v) pair in placements and then summing it.
-
-#     Args:
-#         matrix (nparray): an m x n array with pixel values as its entries
-#         placements (nparray): a k x 2 array with (u,v) pairs as its entries
-#     """    
-#     m, n = matrix.shape
-#     k, _ = placements.shape
-
-#     # Create coordinate grid for matrix
-#     x, y = np.meshgrid(np.arange(m), np.arange(n), indexing='ij')
-#     coords = np.stack((x, y), axis=-1)
-
-#     # Compute squared distances between each point in the matrix and each placement
-#     squared_distances = np.sum((coords[:, :, np.newaxis, :] - placements[np.newaxis, np.newaxis, :, :]) ** 2, axis=-1)
-
-#     # Avoid division by zero by adding a small value
-#     epsilon = 1e-10
-#     distances = np.sqrt(1 / (squared_distances + epsilon))
-
-#     # Handle the case where (u, v) == (r, c)
-#     mask = squared_distances < epsilon
-#     distances[mask] = 2
-
-#     # Compute the loss
-#     f = np.sum(matrix[:, :, np.newaxis] * distances)
-
-#     return f
 def loss_function(matrix, placements):
     """This function calculates the loss by multiplying the pixel value at (x,y) by the distance to the closest
     (u,v) pair in placements and then summing it.
@@ -98,7 +68,7 @@ def loss_function(matrix, placements):
 
     return f
 
-def new_placement(loss_function, matrix, placements):
+def new_placement(loss_function, matrix, placements, multiplier = 1):
     """This function takes in a matrix and placements, as well as a loss function, and return a set of new placements
     such that the loss function is maximized and each new placement is within 1 of the old placement. 
 
@@ -139,14 +109,14 @@ def new_placement(loss_function, matrix, placements):
                 if loss_function(matrix, new_placement) > cur_max:
                     changes[i, j] = 1
     
-    return placements + changes
+    return placements + changes*multiplier
 
 def generate_random_array(k, m, n):
     first_column = np.random.randint(0, m, k)
     second_column = np.random.randint(0, n, k)
     return np.column_stack((first_column, second_column))
 
-def gradient_decent(loss_function, gradient,matrix, num_routers, iters, attempts):
+def gradient_decent(loss_function, gradient,matrix, num_routers = 1, iters = 500, attempts = 20, multiplier = 10):
     m, n = matrix.shape
     max_val_achieved = 0
     best_placement = None
@@ -157,7 +127,8 @@ def gradient_decent(loss_function, gradient,matrix, num_routers, iters, attempts
         placement_history = [placement.copy()]  # Store the initial placement for this attempt
 
         for i in range(iters):
-            placement = new_placement(loss_function, matrix, placement)
+            m = math.floor(iters/(i+1))*multiplier
+            placement = new_placement(loss_function, matrix, placement, m)
             placement_history.append(placement.copy())  # Append the new placement to the history
         if loss_function(matrix, placement) > max_val_achieved:
             max_val_achieved = loss_function(matrix, placement)
@@ -194,6 +165,7 @@ def plot_values_and_placements(values, placements):
     # Show the plot
     plt.show()
 
+
 def plot_values_and_progression(values, history):
     """
     Plot the values of the grid as heights and overlay the progression of placements (r, c) on the image.
@@ -216,35 +188,29 @@ def plot_values_and_progression(values, history):
         rows, cols = placements[:, 0], placements[:, 1]
         
         # Plot the placements on top of the heatmap using different colors for progression
-        plt.scatter(cols + 0.5, rows + 0.5, color=colors[idx], s=100, marker='X', label=f'Step {idx+1}')
+        plt.scatter(cols + 0.5, rows + 0.5, color=colors[idx], s=100, marker='X')
+        
+        # If it's not the first placement, draw a line connecting the current placement to the previous one
+        if idx > 0:
+            prev_rows, prev_cols = history[idx-1][:, 0], history[idx-1][:, 1]
+            for pr, pc, r, c in zip(prev_rows, prev_cols, rows, cols):
+                plt.plot([pc + 0.5, c + 0.5], [pr + 0.5, r + 0.5], color=colors[idx], linestyle='-', linewidth=2)
     
     # Invert the y-axis to match the array indexing
     plt.gca().invert_yaxis()
-    
-    # Display the legend
-    plt.legend()
     
     # Show the plot
     plt.show()
 
 
-# matrix = np.array([[1,2], [3, 4]])
-# placements = np.array([[0,0], [0, 1]])
-# print(loss_function(matrix, placements))
-# placements = new_placement(loss_function, matrix, placements)
-# print(placements)
-# placements = new_placement(loss_function, matrix, placements)
-# print(placements)
-# placements = new_placement(loss_function, matrix, placements)
-# print(placements)
 matrix = image_to_grayscale("/Users/diegorivero/Downloads/Untitled_Artwork 4.jpg")
 start_time = time.perf_counter()
-bp, mva, history = gradient_decent(loss_function, new_placement, matrix, 2, 5, 1)
+bp, mva, history = gradient_decent(loss_function, new_placement, matrix, 2, 50, 1, 10)
 print(bp, mva)
 end_time = time.perf_counter()
 elapsed_time = end_time - start_time
 print(f"Elapsed time: {elapsed_time} seconds")
 
 
-plot_values_and_placements(matrix, bp)
-# plot_values_and_progression(matrix, history)
+# plot_values_and_placements(matrix, bp)
+plot_values_and_progression(matrix, history)
