@@ -6,7 +6,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.linear_model import LinearRegression
 from sklearn.pipeline import make_pipeline
-
+from joblib import Parallel, delayed
 # Set Seaborn's default aesthetics
 sns.set()
 sns.set_style("white")
@@ -67,14 +67,17 @@ def plot_3d_polynomial(model, h, w):
     fig.colorbar(surf, ax=ax, shrink=0.5, aspect=10, pad=0.1, label='Fitted Polynomial Value')
     ax.grid(False)  # Hide gridlines
     plt.show(block=False)
+
 def image_to_polynomial(image_path, degree=2, blur_size=5, blur_sigma=1.5):
     # Load and preprocess the image
     img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
     if img is None:  # Check if image loaded successfully
         raise ValueError(f'Failed to load image at path: {image_path}')
     img = 255 - img
+
     # Apply Gaussian blur to smooth the image
     img_smooth = cv2.GaussianBlur(img, (blur_size, blur_size), blur_sigma)
+
     # Get the dimensions of the image
     h, w = img_smooth.shape
 
@@ -92,8 +95,9 @@ def image_to_polynomial(image_path, degree=2, blur_size=5, blur_sigma=1.5):
     # Create a pipeline of polynomial feature extraction and linear regression
     model = make_pipeline(PolynomialFeatures(degree), LinearRegression())
 
-    # Fit the model to the data
-    model.fit(coordinates, z)
+    # Fit the model to the data using parallel processing
+    with Parallel(n_jobs=-1) as parallel:
+        parallel(delayed(model.fit)(coordinates, z))
 
     # Get the feature powers from PolynomialFeatures
     poly_features = model.named_steps['polynomialfeatures']
@@ -146,10 +150,10 @@ def visualize_topology(image_path, model, img_smooth, degree, blur_size, blur_si
 
 
 # Usage:
-image_path = '/Users/diegorivero/Downloads/Untitled_Artwork 4.jpg'
-degree = 10
-blur_size = 31
-blur_sigma = 12
+image_path = '/Users/diegorivero/Downloads/Untitled_Artwork 5.jpg'
+degree = 15
+blur_size = 11
+blur_sigma = 5
 model, img_smooth = image_to_polynomial(image_path, degree, blur_size, blur_sigma)
 visualize_topology(image_path, model, img_smooth, degree, blur_size, blur_sigma)
 h, w = img_smooth.shape
