@@ -51,16 +51,16 @@ def loss_function(matrix, placements):
     coords = np.stack((x, y), axis=-1)
 
     # Compute squared distances between each point in the matrix and each placement
-    squared_distances = np.sum((coords[:, :, np.newaxis, :] - placements[np.newaxis, np.newaxis, :, :]) ** 2, axis=-1)
+    distances = np.sum((coords[:, :, np.newaxis, :] - placements[np.newaxis, np.newaxis, :, :]), axis=-1)
 
     # Find the index of the closest placement for each pixel
-    closest_placement_idx = np.argmin(squared_distances, axis=-1)
+    closest_placement_idx = np.argmin(distances, axis=-1)
 
     # Compute the distance for each pixel to its closest placement
-    distances_to_closest = np.sqrt(1 / (squared_distances[np.arange(m)[:, np.newaxis], np.arange(n), closest_placement_idx] + 1e-10))
+    distances_to_closest = np.sqrt(1 / (distances[np.arange(m)[:, np.newaxis], np.arange(n), closest_placement_idx] + 1e-10))
 
     # Handle the case where a pixel's coordinates match a placement's coordinates
-    mask = squared_distances[np.arange(m)[:, np.newaxis], np.arange(n), closest_placement_idx] < 1e-10
+    mask = distances[np.arange(m)[:, np.newaxis], np.arange(n), closest_placement_idx] < 1e-10
     distances_to_closest[mask] = 2
 
     # Compute the loss
@@ -124,11 +124,12 @@ def gradient_decent(loss_function, gradient,matrix, num_routers = 1, iters = 500
 
     for _ in range(attempts):
         placement = generate_random_array(num_routers, m, n)
+        print(placement)
         placement_history = [placement.copy()]  # Store the initial placement for this attempt
 
         for i in range(iters):
-            m = math.floor(iters/(i+1))*multiplier
-            placement = new_placement(loss_function, matrix, placement, m)
+            mult = math.floor(iters/(i+1))*multiplier
+            placement = new_placement(loss_function, matrix, placement, mult)
             placement_history.append(placement.copy())  # Append the new placement to the history
         if loss_function(matrix, placement) > max_val_achieved:
             max_val_achieved = loss_function(matrix, placement)
@@ -164,7 +165,6 @@ def plot_values_and_placements(values, placements):
     
     # Show the plot
     plt.show()
-
 
 def plot_values_and_progression(values, history):
     """
@@ -203,9 +203,9 @@ def plot_values_and_progression(values, history):
     plt.show()
 
 
-matrix = image_to_grayscale("/Users/diegorivero/Downloads/Untitled_Artwork 4.jpg")
+matrix = image_to_grayscale("MIT MAIN.jpg")
 start_time = time.perf_counter()
-bp, mva, history = gradient_decent(loss_function, new_placement, matrix, 2, 50, 1, 10)
+bp, mva, history = gradient_decent(loss_function, new_placement, matrix, 5, 1, 20, 10)
 print(bp, mva)
 end_time = time.perf_counter()
 elapsed_time = end_time - start_time
@@ -213,4 +213,4 @@ print(f"Elapsed time: {elapsed_time} seconds")
 
 
 # plot_values_and_placements(matrix, bp)
-plot_values_and_progression(matrix, history)
+# plot_values_and_progression(matrix, history)
