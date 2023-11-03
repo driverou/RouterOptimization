@@ -270,7 +270,7 @@ function history_to_matrix(history)
     return history_matrix
 end
 
-matrix = image_to_grayscale("ThreeHumps.jpg")
+matrix = image_to_grayscale("MIT MAIN.jpg")
 start_time = Dates.now()
 bp, mva, history = gradient_decent(loss_function, matrix, num_routers=2, iters=60, attempts=30, multiplier=20)
 println(bp, " ", mva)
@@ -286,6 +286,3 @@ open("mva.txt", "w") do f
 end
 history_matrix = history_to_matrix(history)
 writedlm("history.csv", history_matrix, ',')
-
-
-plot_values_and_progression(matrix, history)
