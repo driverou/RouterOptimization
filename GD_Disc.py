@@ -4,7 +4,9 @@ import time
 import cv2
 import seaborn as sns
 import matplotlib.pyplot as plt
-
+from joblib import Parallel, delayed
+import numba
+from numba.typed import List
 
 
 def image_to_grayscale(image_path, blur_size=5, blur_sigma=1.5):
@@ -35,8 +37,8 @@ def image_to_grayscale(image_path, blur_size=5, blur_sigma=1.5):
     
     return img_smooth
 
-def loss_function(matrix, placements):
-    """This function calculates the loss by multiplying the pixel value at (x,y) by the distance to the closest
+def loss_function_squared_distance(matrix, placements):
+    """This function calculates the loss by multiplying the pixel value at (x,y) by the distance to each
     (u,v) pair in placements and then summing it.
 
     Args:
@@ -53,37 +55,49 @@ def loss_function(matrix, placements):
     # Compute squared distances between each point in the matrix and each placement
     squared_distances = np.sum((coords[:, :, np.newaxis, :] - placements[np.newaxis, np.newaxis, :, :]) ** 2, axis=-1)
 
-    # Compute the actual distances by taking the square root of the squared distances
-    distances = np.sqrt(squared_distances)
+    # Avoid division by zero by adding a small value
+    epsilon = 1e-10
+    distances = np.sqrt(1 / (squared_distances + epsilon))
 
-    # Find the index of the closest placement for each pixel
-    closest_placement_idx = np.argmin(distances, axis=-1)
-
-    # Compute the distance for each pixel to its closest placement
-    distances_to_closest = distances[np.arange(m)[:, np.newaxis], np.arange(n), closest_placement_idx]
-
-    # Handle the case where a pixel's coordinates match a placement's coordinates
-    mask = squared_distances[np.arange(m)[:, np.newaxis], np.arange(n), closest_placement_idx] < 1e-10
-    distances_to_closest[mask] = 0 # Since the distance between identical points is 0
+    # Handle the case where (u, v) == (r, c)
+    mask = squared_distances < epsilon
+    distances[mask] = 2
 
     # Compute the loss
-    f = np.sum(matrix * distances_to_closest)
+    f = np.sum(matrix[:, :, np.newaxis] * distances)
 
     return f
 
+def loss_function(matrix, placements):
+    """
+    Calculate the weighted sum of pixel values based on their distance to the nearest placement.
 
-def new_placement(loss_function, matrix, placements, multiplier = 1):
-    """This function takes in a matrix and placements, as well as a loss function, and return a set of new placements
-    such that the loss function is maximized and each new placement is within 1 of the old placement. 
-
-    Args:
-        loss_function (function): computes the loss function given a matrix and placements
-        matrix (nparray): matrix that we are optimizing over
-        placements (nparray): (r, c) pairs that are our placements
+    Parameters:
+    - matrix (np.array): m x n matrix of pixel values (0, 255).
+    - placements (np.array): k x 2 array where each row is a pair of (r, c) coordinates.
 
     Returns:
-        new_placements: new placements that maximize loss_function
-    """    
+    - float: The weighted sum.
+    """
+    m, n = matrix.shape
+    rows, cols = np.indices((m, n))
+    
+    # Calculate distances from each pixel to each placement
+    distances = np.sqrt((placements[:, 0][:, np.newaxis, np.newaxis] - rows)**2 + 
+                        (placements[:, 1][:, np.newaxis, np.newaxis] - cols)**2)
+    
+    # Add epsilon to distance if pixel location = placement location
+    distances[distances == 0] += 0.1
+    
+    # Find the minimum distance for each pixel
+    min_distances = np.min(distances, axis=0)
+    
+    # Calculate the weight based on the nearest placement
+    weights = 1 / min_distances
+    
+    return np.sum(matrix * weights)
+
+def new_placement(loss_function, matrix, placements, multiplier=1):
     m, n = matrix.shape
     k, _ = placements.shape
     changes = np.zeros((k, 2))
@@ -96,31 +110,24 @@ def new_placement(loss_function, matrix, placements, multiplier = 1):
             new_placement = placements.copy()
             new_placement[i, j] -= 1
             
-            if j == 0 and 0 <= new_placement[i, j] < m:
-                if loss_function(matrix, new_placement) > cur_max:
-                    changes[i, j] = -1
-                    cur_max = loss_function(matrix, new_placement)
-            elif j == 1 and 0 <= new_placement[i, j] < n:
+            if 0 <= new_placement[i, j] < (m if j == 0 else n):
                 if loss_function(matrix, new_placement) > cur_max:
                     changes[i, j] = -1
                     cur_max = loss_function(matrix, new_placement)
             
             new_placement[i, j] += 2
-            if j == 0 and 0 <= new_placement[i, j] < m:
-                if loss_function(matrix, new_placement) > cur_max:
-                    changes[i, j] = 1
-            elif j == 1 and 0 <= new_placement[i, j] < n:
+            if 0 <= new_placement[i, j] < (m if j == 0 else n):
                 if loss_function(matrix, new_placement) > cur_max:
                     changes[i, j] = 1
     
-    return placements + changes*multiplier
+    return placements + changes * multiplier
 
 def generate_random_array(k, m, n):
     first_column = np.random.randint(0, m, k)
     second_column = np.random.randint(0, n, k)
     return np.column_stack((first_column, second_column))
 
-def gradient_decent(loss_function, gradient,matrix, num_routers = 1, iters = 500, attempts = 20, multiplier = 10):
+def gradient_decent(loss_function, gradient,matrix, num_routers = 2, iters = 500, attempts = 20, multiplier = 10):
     m, n = matrix.shape
     max_val_achieved = 0
     best_placement = None
@@ -205,10 +212,91 @@ def plot_values_and_progression(values, history):
     # Show the plot
     plt.show()
 
+@numba.jit(nopython=True)
+def compute_batch_errors(matrix, batch_rows, batch_cols, m, n):
+    """
+    Compute the errors for a batch of pixels.
+    """
+    batch_size = len(batch_rows)
+    batch_errors = np.zeros(batch_size)
+    
+    for idx in range(batch_size):
+        i, j = batch_rows[idx], batch_cols[idx]
+        rows = np.arange(m)
+        cols = np.arange(n)
+        
+        row_dists = np.abs(rows - i)
+        col_dists = np.abs(cols - j)
+        
+        distances = np.sqrt(row_dists[:, np.newaxis]**2 + col_dists**2)
+        
+        # Update distances using a loop
+        for x in range(m):
+            for y in range(n):
+                if distances[x, y] == 0:
+                    distances[x, y] += 0.1
+        
+        weights = 1 / distances
+        
+        batch_errors[idx] = np.sum(matrix * weights)
+    
+    return batch_errors
 
-matrix = image_to_grayscale("MIT MAIN.jpg")
+
+def compute_errors(matrix):
+    """
+    Compute the errors for all placements in the matrix using parallel processing.
+    """
+    m, n = matrix.shape
+    errors = np.zeros((m, n))
+    
+    # Create batches of pixel placements
+    batch_size = 100
+    total_pixels = m * n
+    num_batches = (total_pixels + batch_size - 1) // batch_size
+    batches = [(list(range(i*batch_size, min((i+1)*batch_size, total_pixels))),) for i in range(num_batches)]
+    
+    # Parallel computation of errors for each batch of pixel placements
+    results = Parallel(n_jobs=-1)(delayed(compute_batch_errors)(matrix, 
+                                                                [idx // n for idx in batch[0]], 
+                                                                [idx % n for idx in batch[0]], 
+                                                                m, n) 
+                                  for batch in batches)
+    
+    # Populate the errors matrix with the computed results
+    for batch, batch_errors in zip(batches, results):
+        for idx, error in zip(batch[0], batch_errors):
+            errors[idx // n, idx % n] = error
+    
+    return errors
+
+
+
+def plot_placement_error(matrix):
+    """
+    Plot the error for placing the placement at each pixel in a 3D plot.
+    """
+    errors = compute_errors(matrix)
+    
+    fig = plt.figure(figsize=(10, 7))
+    ax = fig.add_subplot(111, projection='3d')
+    
+    x = np.arange(matrix.shape[0])
+    y = np.arange(matrix.shape[1])
+    x, y = np.meshgrid(x, y)
+    
+    ax.plot_surface(x, y, errors, cmap='viridis')
+    
+    ax.set_xlabel('Row Index')
+    ax.set_ylabel('Column Index')
+    ax.set_zlabel('Error')
+    ax.set_title('Placement Error for Each Pixel')
+    
+    plt.show()
+
+matrix = image_to_grayscale("ThreeHumps.jpg")
 start_time = time.perf_counter()
-bp, mva, history = gradient_decent(loss_function, new_placement, matrix, num_routers=1, iters=60, attempts=20, multiplier=10)
+bp, mva, history = gradient_decent(loss_function,new_placement, matrix, num_routers=2, iters=20, attempts=3, multiplier=20)
 print(bp, mva)
 end_time = time.perf_counter()
 elapsed_time = end_time - start_time
