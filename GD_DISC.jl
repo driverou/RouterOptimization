@@ -77,7 +77,6 @@ function loss_function(matrix, placements)
     return sum(matrix .* weights)
 end
 
-
 function new_placement(loss_function, matrix, placements; multiplier::Int=1)
     m, n = size(matrix)
     k, _ = size(placements)
@@ -116,7 +115,6 @@ function new_placement(loss_function, matrix, placements; multiplier::Int=1)
     return placements .+ changes .* multiplier
 end
 
-
 function generate_random_array(k, m, n)
     return hcat(rand(1:m, k), rand(1:n, k))
 end
@@ -152,8 +150,6 @@ function plot_values_and_placements(values, placements)
 end
 
 
-
-
 function plot_values_and_progression(values, history)
     # Set a minimalist theme
     theme(:default)
@@ -185,7 +181,6 @@ function plot_values_and_progression(values, history)
     end
     savefig("placement_progression_plot.png")
 end
-
 
 # function plot_values_and_progression_3d(values, history)
 #     # Convert Gray values to Float64
@@ -277,7 +272,7 @@ end
 
 matrix = image_to_grayscale("ThreeHumps.jpg")
 start_time = Dates.now()
-bp, mva, history = gradient_decent(loss_function, matrix, num_routers=2, iters=50, attempts=4, multiplier=20)
+bp, mva, history = gradient_decent(loss_function, matrix, num_routers=2, iters=60, attempts=30, multiplier=20)
 println(bp, " ", mva)
 end_time = Dates.now()
 elapsed_time = Dates.value(end_time - start_time) / 1000  # Convert milliseconds to seconds
