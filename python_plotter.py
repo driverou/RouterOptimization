@@ -291,7 +291,7 @@ def animate_plot_values_and_progression_3d(values, history):
 
 
 print("Started Plotting")
-# plot_values_and_progression(matrix, history_array)
+plot_values_and_progression(matrix, history_array)
 # plot_values_and_progression_3d(matrix, history_array)
 # animate_values_and_progression(matrix, history_array)
-animate_plot_values_and_progression_3d(matrix, history_array)
+# animate_plot_values_and_progression_3d(matrix, history_array)

@@ -144,117 +144,7 @@ function gradient_decent(loss_function, matrix; num_routers::Int=2, iters::Int=5
     return best_placement, max_val_achieved, history
 end
 
-function plot_values_and_placements(values, placements)
-    heatmap(values, color=:viridis, legend=true)
-    scatter!(placements[:, 2] .+ 0.5, placements[:, 1] .+ 0.5, color=:red, markersize=10, label="Placement")
-end
 
-
-function plot_values_and_progression(values, history)
-    # Set a minimalist theme
-    theme(:default)
-    
-    # Get the size of the values matrix
-    m, n = size(values)
-    
-    # Simplified heatmap with a subtle color palette
-    heatmap(values, color=:viridis, legend=false, title="Placement Progression", titlefont=font(14, "Arial", :bold), 
-            xlims=(0.5, n + 0.5), ylims=(0.5, m + 0.5), framestyle=:none)
-    
-    # Define a gradient color range for the progression
-    colors = range(RGB(0.1,0.5,1), stop=RGB(1,0.2,0.2), length=length(history))
-    
-    for (idx, placements) in enumerate(history)
-        # Simplified marker styles
-        markerstyle = :circle
-        
-        # No labels for a cleaner look
-        scatter!(placements[:, 2] .+ 0.5, placements[:, 1] .+ 0.5, color=colors[idx], markersize=8, marker=markerstyle, label=false)
-        
-        # Connect the placements with smooth lines
-        if idx > 1
-            prev_placements = history[idx-1]
-            for (pr, pc, r, c) in zip(prev_placements[:, 1], prev_placements[:, 2], placements[:, 1], placements[:, 2])
-                plot!([pc+0.5, c+0.5], [pr+0.5, r+0.5], color=colors[idx], linewidth=1.5, linestyle=:solid, label=false)
-            end
-        end
-    end
-    savefig("placement_progression_plot.png")
-end
-
-# function plot_values_and_progression_3d(values, history)
-#     # Convert Gray values to Float64
-#     values_float = Float64.(values)
-    
-#     # Get the axes of the values matrix
-#     rows, cols = axes(values_float)
-    
-#     # Create a 3D surface plot of the values
-#     fig = Figure(resolution = (800, 600))
-#     ax = Axis3(fig[1, 1], perspectiveness = 0.5)
-#     Makie.surface!(ax, cols, rows, values_float', colormap = :viridis)
-    
-#     # Define a gradient color range for the progression
-#     colors = range(RGB(0.1,0.5,1), stop=RGB(1,0.2,0.2), length=length(history))
-    
-#     for (idx, placements) in enumerate(history)
-#         # Extract z-values (heights) from the values matrix for each placement
-#         z_vals = [values_float[r, c] for (r, c) in eachrow(placements)]
-        
-#         # Convert placements to Float64
-#         x_vals = Float64.(placements[:, 2] .+ 0.5)
-#         y_vals = Float64.(placements[:, 1] .+ 0.5)
-        
-#         # Plot the placements as 3D spheres in 3D space
-#         Makie.scatter!(ax, x_vals, y_vals, z_vals, color = colors[idx], markersize = 8, markershape = :circle, label = false)
-        
-#         # Connect the placements with lines in 3D space
-#         if idx > 1
-#             prev_placements = history[idx-1]
-#             prev_z_vals = [values_float[r, c] for (r, c) in eachrow(prev_placements)]
-#             for ((pr, pc), pz, (r, c), z) in zip(eachrow(prev_placements), prev_z_vals, eachrow(placements), z_vals)
-#                 Makie.lines!(ax, [Float64(pc+0.5), Float64(c+0.5)], [Float64(pr+0.5), Float64(r+0.5)], [pz, z], color = colors[idx], linewidth = 1.5)
-#             end
-#         end
-#     end
-    
-#     # Display the interactive 3D plot
-#     Makie.display(fig)
-    
-#     # Save the plot to a file
-#     save("placement_progression_3d_plot.png", fig)
-# end
-function plot_values_and_progression(values, history)
-    # Set a minimalist theme
-    Plots.theme(:default)
-    
-    # Get the size of the values matrix
-    m, n = size(values)
-    
-    # Simplified heatmap with a subtle color palette
-    Plots.heatmap(values, color=:viridis, legend=false, title="Placement Progression", titlefont=font(14, "Arial", :bold), 
-            xlims=(0.5, n + 0.5), ylims=(0.5, m + 0.5), framestyle=:none)
-    
-    # Define a gradient color range for the progression
-    colors = range(RGB(0.1,0.5,1), stop=RGB(1,0.2,0.2), length=length(history))
-    
-    for (idx, placements) in enumerate(history)
-        # Simplified marker styles
-        markerstyle = :circle
-        
-        # No labels for a cleaner look
-        Plots.scatter!(placements[:, 2] .+ 0.5, placements[:, 1] .+ 0.5, color=colors[idx], markersize=8, marker=markerstyle, label=false)
-        
-        # Connect the placements with smooth lines
-        if idx > 1
-            prev_placements = history[idx-1]
-            for (pr, pc, r, c) in zip(prev_placements[:, 1], prev_placements[:, 2], placements[:, 1], placements[:, 2])
-                Plots.plot!([pc+0.5, c+0.5], [pr+0.5, r+0.5], color=colors[idx], linewidth=1.5, linestyle=:solid, label=false)
-            end
-        end
-    end
-    Plots.savefig("placement_progression_plot_julia.png")
-end
 
 function history_to_matrix(history)
     num_timesteps = length(history)
@@ -272,7 +162,7 @@ end
 
 matrix = image_to_grayscale("MIT MAIN.jpg")
 start_time = Dates.now()
-bp, mva, history = gradient_decent(loss_function, matrix, num_routers=2, iters=60, attempts=30, multiplier=20)
+bp, mva, history = gradient_decent(loss_function, matrix, num_routers=1, iters=30, attempts=1, multiplier=20)
 println(bp, " ", mva)
 end_time = Dates.now()
 elapsed_time = Dates.value(end_time - start_time) / 1000  # Convert milliseconds to seconds
