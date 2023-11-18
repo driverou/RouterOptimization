@@ -62,6 +62,8 @@ function calculate_loss(matrix::Matrix{Float64}, placements::Matrix{Int32})::Flo
     end
     return min_seen[]
 end
+
+
 function update_placements(matrix::Matrix{Float64}, placements::Matrix{Int32}, multiplier::Int = 2)::Matrix{Int32}
     base_error = calculate_loss(matrix, placements)
     k = size(placements, 1)
@@ -136,14 +138,12 @@ function gradient_descent(loss_function::Function, matrix::Matrix{Float64}, k::I
 end
 
 m = image_to_matrix("ThreeHumps.jpg")
-p = Matrix{Int32}([2 1])
-
-@time best_placements, max_val, history = gradient_descent(calculate_loss, m, 1, 60, 5, 20)
-print(best_placements)
-print(max_val)
-print(history)
+p = Matrix{Int32}([2 1; 23 23; 234 23; 23 2; 234 23; 234 35; 53 53])
+@time calculate_loss2(m, p)
+# @time best_placements, max_val, history = gradient_descent(calculate_loss, m, 3, 30, 50, 20)
 
 
-writedlm("matrix.csv", Float64.(m), ',')
-writedlm("bp.csv", Float64.(best_placements), ',')
-writedlm("history.csv", history, ',')
+
+# writedlm("matrix.csv", Float64.(m), ',')
+# writedlm("bp.csv", Float64.(best_placements), ',')
+# writedlm("history.csv", history, ',')
