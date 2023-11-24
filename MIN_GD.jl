@@ -137,13 +137,13 @@ function gradient_descent(loss_function::Function, matrix::Matrix{Float64}, k::I
     return best_placement, max_val_achieved, history
 end
 
-m = image_to_matrix("ThreeHumps.jpg")
+m = image_to_matrix("AllWhite.jpg")
 p = Matrix{Int32}([2 1; 23 23; 234 23; 23 2; 234 23; 234 35; 53 53])
-@time calculate_loss2(m, p)
-# @time best_placements, max_val, history = gradient_descent(calculate_loss, m, 3, 30, 50, 20)
+
+@time best_placements, max_val, history = gradient_descent(calculate_loss, m, 3, 30, 10, 20)
 
 
 
-# writedlm("matrix.csv", Float64.(m), ',')
-# writedlm("bp.csv", Float64.(best_placements), ',')
-# writedlm("history.csv", history, ',')
+writedlm("matrix.csv", Float64.(m), ',')
+writedlm("bp.csv", Float64.(best_placements), ',')
+writedlm("history.csv", history, ',')
