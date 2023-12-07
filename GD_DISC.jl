@@ -160,9 +160,9 @@ function history_to_matrix(history)
     return history_matrix
 end
 
-matrix = image_to_grayscale("MIT MAIN.jpg")
+matrix = image_to_grayscale("maincampusgray.jpg")
 start_time = Dates.now()
-bp, mva, history = gradient_decent(loss_function, matrix, num_routers=20, iters=30, attempts=20, multiplier=20)
+bp, mva, history = gradient_decent(loss_function, matrix, num_routers=20, iters=30, attempts=10, multiplier=1)
 println(mva)
 end_time = Dates.now()
 elapsed_time = Dates.value(end_time - start_time) / 1000  # Convert milliseconds to seconds
