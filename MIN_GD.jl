@@ -30,7 +30,7 @@ end
 function calculate_loss(matrix::Matrix{Float64}, placements::Matrix{Int32})::Float64
     m, n = size(matrix)
     k = size(placements, 1)
-    epsilon::Float64 = .001
+    epsilon::Float64 = 1
 
     # Shared minimum value across threads; each thread will have its own local copy
     min_seen = Threads.Atomic{Float64}(Inf)
@@ -42,7 +42,7 @@ function calculate_loss(matrix::Matrix{Float64}, placements::Matrix{Int32})::Flo
     @threads for i in 1:m
         for j in 1:n
             pixel_value = matrix[i, j]
-            local_min_seen = Inf  # Local minimum for the current thread
+            min_dist = Inf  # Local minimum for the current thread
 
             # Calculate the distance to all points and find the minimum
             for p in 1:k
@@ -50,14 +50,12 @@ function calculate_loss(matrix::Matrix{Float64}, placements::Matrix{Int32})::Flo
                 dist_sq = placements_sq[p] - 2 * (placements[p, 1] * i + placements[p, 2] * j) + i^2 + j^2
                 dist_sq = max(dist_sq, epsilon^2)  # Apply epsilon to avoid division by zero
 
-                # Calculate the pixel function and update the local minimum
-                pixel_func = pixel_value / sqrt(dist_sq)
-            
-                local_min_seen = min(local_min_seen, pixel_func)
+
+                min_dist = min(min_dist, sqrt(dist_sq))
             end
 
             # Safely update the global minimum across all threads
-            Threads.atomic_min!(min_seen, local_min_seen)
+            Threads.atomic_min!(min_seen, pixel_value/min_dist)
         end
     end
     return min_seen[]
@@ -115,6 +113,7 @@ end
 
 function gradient_descent(loss_function::Function, matrix::Matrix{Float64}, k::Int = 2, iters::Int = 30, attempts::Int= 1, multiplier::Int = 10)
     m, n = size(matrix)
+
     max_val_achieved = 0.0
     best_placement = nothing
     history = []
@@ -134,15 +133,15 @@ function gradient_descent(loss_function::Function, matrix::Matrix{Float64}, k::I
             history = placement_history  # Update the main history with the current attempt's history
         end
     end
+    
     return best_placement, max_val_achieved, history
 end
 
-m = image_to_matrix("AllWhite.jpg")
-p = Matrix{Int32}([2 1; 23 23; 234 23; 23 2; 234 23; 234 35; 53 53])
+m = image_to_matrix("MIT MAIN.jpg")
 
-@time best_placements, max_val, history = gradient_descent(calculate_loss, m, 3, 30, 10, 20)
-
-
+@time best_placements, max_val, history = gradient_descent(calculate_loss, m, 2, 30, 50, 20)
+println(max_val)
+println(best_placements)
 
 writedlm("matrix.csv", Float64.(m), ',')
 writedlm("bp.csv", Float64.(best_placements), ',')

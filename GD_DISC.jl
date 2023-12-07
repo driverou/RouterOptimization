@@ -60,7 +60,7 @@ function loss_function(matrix, placements)
     placements_rows = reshape(placements[:, 1], 1, 1, k)
     placements_cols = reshape(placements[:, 2], 1, 1, k)
     
-    epsilon = 0.1
+    epsilon = 1
 
     # Parallelize the computation of distances using threads
     @Threads.threads for i in 1:m
@@ -162,8 +162,8 @@ end
 
 matrix = image_to_grayscale("MIT MAIN.jpg")
 start_time = Dates.now()
-bp, mva, history = gradient_decent(loss_function, matrix, num_routers=1, iters=30, attempts=1, multiplier=20)
-println(bp, " ", mva)
+bp, mva, history = gradient_decent(loss_function, matrix, num_routers=20, iters=30, attempts=20, multiplier=20)
+println(mva)
 end_time = Dates.now()
 elapsed_time = Dates.value(end_time - start_time) / 1000  # Convert milliseconds to seconds
 println("Elapsed time: ", elapsed_time, " seconds")
